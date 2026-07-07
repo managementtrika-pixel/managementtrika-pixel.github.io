@@ -6,4 +6,4 @@ function renderProfile(){const history=loadJson(HISTORY_KEY,[]),favs=favorites()
 function removeFavorite(encoded){const title=decodeURIComponent(encoded);saveJson(FAVORITES_KEY,favorites().filter(f=>f.title!==title));renderProfile()}
 function editProfile(){show('login');$('name').value=user?.guest?'':user?.name||'';$('email').value=user?.email||''}
 function clearHistory(){if(confirm('Effacer toutes les statistiques enregistrées sur ce téléphone ?')){localStorage.removeItem(HISTORY_KEY);renderProfile()}}
-(()=>{const script=document.createElement('script');script.src='v4-loader.js?v=6';document.body.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.src='v4-loader.js?v=7';document.body.appendChild(script)})();
