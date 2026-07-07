@@ -1,0 +1,1 @@
+# managementtrika-pixel.github.io
