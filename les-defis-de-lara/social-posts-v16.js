@@ -136,7 +136,8 @@ async function publishPost() {
   const quantity = document.getElementById('postQuantity')?.value.trim() || '';
   const recipe = document.getElementById('postRecipe')?.value.trim() || '';
   const exercise = document.getElementById('postExercise')?.value.trim() || '';
-  if (!description && !food && !exercise && !recipe) return setPostStatus('Ajoute au moins une description ou un détail.', 'err');
+  const sets = document.getElementById('postSets')?.value.trim() || '';
+  if (!description && !food && !exercise && !recipe && !sets) return setPostStatus('Ajoute au moins une description ou un détail.', 'err');
   try {
     document.getElementById('publishPostBtn').disabled = true;
     await addDoc(collection(db, 'posts'), {
@@ -148,6 +149,7 @@ async function publishPost() {
       quantity,
       recipe,
       exercise,
+      sets,
       imageData: compressedImage || '',
       createdAt: serverTimestamp()
     });
@@ -187,6 +189,7 @@ function postCard(post) {
   const details = [];
   if (post.food) details.push('Aliment : ' + post.food);
   if (post.exercise) details.push('Exercice : ' + post.exercise);
+  if (post.sets) details.push('Séries : ' + post.sets);
   if (post.quantity) details.push('Quantité / repère : ' + post.quantity);
   if (post.recipe) details.push((type==='meal'?'Recette':'Détails') + ' : ' + post.recipe);
   return `<article class="postCard ${esc(type)}">
