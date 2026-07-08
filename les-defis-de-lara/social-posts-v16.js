@@ -2,18 +2,43 @@ import { getApps, getApp, initializeApp } from 'https://www.gstatic.com/firebase
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
 import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
 
-const CONFIG = window.LARA_FIREBASE_CONFIG;
-const app = getApps().length ? getApp() : initializeApp(CONFIG);
-const auth = getAuth(app);
-const db = getFirestore(app);
+let app = null;
+let auth = null;
+let db = null;
 let currentUser = null;
 let selectedPostType = 'meal';
 let compressedImage = '';
 let unsubscribePosts = null;
-const $ = id => document.getElementById(id);
+let authListenerAttached = false;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const typeLabels = { meal:'Mon repas', session:'Ma séance', progress:'Mes progrès' };
 const typeEmoji = { meal:'🍽️', session:'🏋️‍♀️', progress:'✨' };
+
+function initFirebasePosts() {
+  if (auth && db) return true;
+  const config = window.LARA_FIREBASE_CONFIG;
+  if (!config || !config.apiKey) {
+    console.warn('Firebase config absente pour le fil social.');
+    return false;
+  }
+  try {
+    const existing = getApps().find(item => item?.options?.projectId === config.projectId) || getApps()[0] || null;
+    app = existing || initializeApp(config);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    if (!authListenerAttached) {
+      authListenerAttached = true;
+      onAuthStateChanged(auth, user => {
+        currentUser = user;
+        if (user) startPostsFeed();
+      });
+    }
+    return true;
+  } catch (error) {
+    console.warn('Firebase non prêt pour le fil social', error);
+    return false;
+  }
+}
 
 function readLocalProfile() {
   try { return JSON.parse(localStorage.getItem('laraUserV4')) || JSON.parse(localStorage.getItem('laraUser')) || {}; }
@@ -90,9 +115,10 @@ function renderComposer() {
       </div>
     </div>
   `;
-  document.querySelectorAll('.postTab').forEach(button => button.onclick = () => { selectedPostType = button.dataset.type; compressedImage = ''; renderComposer(); });
+  document.querySelectorAll('.postTab').forEach(button => button.onclick = () => { selectedPostType = button.dataset.type; compressedImage = ''; renderComposer(); window.LaraModernUI?.enhanceFeed?.(); });
   document.getElementById('postImage').onchange = handleImage;
   document.getElementById('publishPostBtn').onclick = publishPost;
+  window.LaraModernUI?.enhanceFeed?.();
 }
 
 function setPostStatus(text, type='ok') {
@@ -130,6 +156,7 @@ async function compressImage(file) {
 }
 
 async function publishPost() {
+  if (!initFirebasePosts()) return setPostStatus('Firebase charge encore. Réessaie dans quelques secondes.', 'err');
   if (!currentUser) return setPostStatus('Connecte-toi pour publier.', 'err');
   const description = document.getElementById('postDescription')?.value.trim() || '';
   const food = document.getElementById('postFood')?.value.trim() || '';
@@ -154,21 +181,27 @@ async function publishPost() {
       createdAt: serverTimestamp()
     });
     compressedImage = '';
-    setPostStatus('Publication envoyée ✓', 'ok');
     renderComposer();
+    setTimeout(() => window.LaraModernUI?.closeComposer?.(), 450);
   } catch (error) {
     console.warn(error);
-    setPostStatus('Publication impossible : vérifie les règles Firestore.', 'err');
+    setPostStatus('Publication impossible : vérifie les règles Firestore ou choisis une image plus légère.', 'err');
+    const btn = document.getElementById('publishPostBtn');
+    if (btn) btn.disabled = false;
   }
 }
 
 function startPostsFeed() {
-  if (unsubscribePosts) return;
-  const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(40));
-  unsubscribePosts = onSnapshot(q, snapshot => {
-    window.LARA_SOCIAL_POSTS = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    renderPostsFeed();
-  }, error => console.warn('Posts feed error', error));
+  if (!initFirebasePosts() || unsubscribePosts) return;
+  try {
+    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(40));
+    unsubscribePosts = onSnapshot(q, snapshot => {
+      window.LARA_SOCIAL_POSTS = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderPostsFeed();
+    }, error => console.warn('Posts feed error', error));
+  } catch (error) {
+    console.warn('Impossible de lancer le fil social', error);
+  }
 }
 
 function renderPostsFeed() {
@@ -182,6 +215,7 @@ function renderPostsFeed() {
   const oldActivity = cloud.length ? '<h3>Défis réalisés</h3>' + cloud.slice(0,10).map(item => `<article class="feedItem"><div class="feedAvatar">${esc((item.name||'?').charAt(0).toUpperCase())}</div><div class="feedContent"><b>${esc(item.name||'Participante')}<span class="onlineBadge">Défi</span></b><p>${esc(item.emoji||'✨')} ${esc(item.title||'Défi terminé')}</p><span>${esc(item.mode==='duo'?'Duo':'Solo')} • ${esc(item.level||'')}</span></div></article>`).join('') : '';
   list.innerHTML = postHtml || '<div class="emptySocial">Aucune publication pour le moment.</div>';
   if (oldActivity) list.insertAdjacentHTML('beforeend', oldActivity);
+  window.LaraModernUI?.enhanceFeed?.();
 }
 
 function postCard(post) {
@@ -207,13 +241,19 @@ const originalOpenFeed = window.openFeed;
 window.openFeed = function() {
   if (typeof originalOpenFeed === 'function') originalOpenFeed();
   ensureFeedShell();
+  initFirebasePosts();
   renderPostsFeed();
+  startPostsFeed();
   if (typeof window.show === 'function') window.show('feed');
 };
 
-onAuthStateChanged(auth, user => {
-  currentUser = user;
-  if (user) startPostsFeed();
-});
+function bootSocialPosts() {
+  ensureFeedShell();
+  renderComposer();
+  initFirebasePosts();
+  if (currentUser) startPostsFeed();
+}
 
-document.addEventListener('DOMContentLoaded', () => setTimeout(() => { ensureFeedShell(); renderComposer(); }, 500));
+document.addEventListener('DOMContentLoaded', () => setTimeout(bootSocialPosts, 500));
+setTimeout(bootSocialPosts, 1200);
+setTimeout(bootSocialPosts, 2500);
