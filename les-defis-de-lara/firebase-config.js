@@ -1,5 +1,5 @@
 window.LARA_FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBnEXmtur43V0hEdEK_-Vbd8OJHaLm5dLc",
+  apiKey: "AIzaSyBnEXmtur43V0hEdEK_-Vbd8OJHalm5dLc",
   authDomain: "les-defi-de-lara.firebaseapp.com",
   projectId: "les-defi-de-lara",
   storageBucket: "les-defi-de-lara.firebasestorage.app",
