@@ -1,259 +1,81 @@
 import { getApps, getApp, initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
-import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
+import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, increment } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
 
-let app = null;
-let auth = null;
-let db = null;
-let currentUser = null;
-let selectedPostType = 'meal';
-let compressedImage = '';
-let unsubscribePosts = null;
-let authListenerAttached = false;
-const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const typeLabels = { meal:'Mon repas', session:'Ma séance', progress:'Mes progrès' };
-const typeEmoji = { meal:'🍽️', session:'🏋️‍♀️', progress:'✨' };
+let app=null, auth=null, db=null, currentUser=null, unsubscribePosts=null, authListenerAttached=false;
+let modalState={ type:null, selectedExercises:[], selectedFoods:[], imageData:'', progressCompare:false };
+const postCache=new Map();
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const labels={meal:'Mon repas',session:'Ma séance',progress:'Mes progrès'};
+const emoji={meal:'🍽️',session:'🏋️‍♀️',progress:'✨'};
+const foodOptions=['Poulet','Dinde','Œufs','Saumon','Thon','Cabillaud','Steak haché 5%','Tofu','Skyr','Fromage blanc','Yaourt grec','Riz basmati','Riz complet','Pâtes complètes','Patate douce','Pommes de terre','Quinoa','Flocons d’avoine','Pain complet','Wrap complet','Lentilles','Pois chiches','Haricots rouges','Brocolis','Haricots verts','Courgettes','Carottes','Épinards','Salade','Tomates','Concombre','Avocat','Banane','Pomme','Fruits rouges','Kiwi','Orange','Amandes','Noix','Beurre de cacahuète','Huile d’olive','Chocolat noir','Whey','Smoothie','Bowl','Omelette','Salade composée','Soupe','Porridge'];
 
-function initFirebasePosts() {
-  if (auth && db) return true;
-  const config = window.LARA_FIREBASE_CONFIG;
-  if (!config || !config.apiKey) {
-    console.warn('Firebase config absente pour le fil social.');
-    return false;
-  }
-  try {
-    const existing = getApps().find(item => item?.options?.projectId === config.projectId) || getApps()[0] || null;
-    app = existing || initializeApp(config);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    if (!authListenerAttached) {
-      authListenerAttached = true;
-      onAuthStateChanged(auth, user => {
-        currentUser = user;
-        if (user) startPostsFeed();
-      });
-    }
+function initFirebasePosts(){
+  if(auth&&db)return true;
+  const config=window.LARA_FIREBASE_CONFIG;
+  if(!config?.apiKey)return false;
+  try{
+    app=getApps().find(item=>item?.options?.projectId===config.projectId)||getApps()[0]||initializeApp(config);
+    auth=getAuth(app); db=getFirestore(app);
+    if(!authListenerAttached){authListenerAttached=true;onAuthStateChanged(auth,user=>{currentUser=user;if(user)startPostsFeed();});}
     return true;
-  } catch (error) {
-    console.warn('Firebase non prêt pour le fil social', error);
-    return false;
-  }
+  }catch(error){console.warn('Firebase posts non prêt',error);return false;}
 }
-
-function readLocalProfile() {
-  try { return JSON.parse(localStorage.getItem('laraUserV4')) || JSON.parse(localStorage.getItem('laraUser')) || {}; }
-  catch { return {}; }
+function readProfile(){try{return JSON.parse(localStorage.getItem('laraUserV4'))||JSON.parse(localStorage.getItem('laraUser'))||{}}catch{return {}}}
+function currentName(){const p=readProfile();return p.name||currentUser?.email?.split('@')[0]||'Participante'}
+function history(){try{return JSON.parse(localStorage.getItem('laraHistoryV4'))||[]}catch{return []}}
+function exerciseOptions(){
+  let list=[];
+  try{ if(typeof EXERCISES!=='undefined'&&Array.isArray(EXERCISES)) list=EXERCISES.map(e=>e.name||e.title).filter(Boolean); }catch{}
+  if(!list.length) list=['Squat','Squat sumo','Fente arrière','Fente statique','Presse à cuisses','Extension de jambes','Leg curl','Hip thrust','Pont fessier','Abduction à la machine','Extension de hanche à la poulie','Soulevé de terre roumain','Tirage vertical','Rowing','Développé couché','Développé épaules','Élévation latérale','Curl biceps','Extension triceps','Gainage','Crunch','Mountain climber','Rameur','Vélo','Tapis de marche'];
+  return [...new Set(list)].sort((a,b)=>a.localeCompare(b,'fr'));
 }
-
-function currentName() {
-  const profile = readLocalProfile();
-  return profile.name || currentUser?.email?.split('@')[0] || 'Participante';
+function ensureFeedShell(){
+  if(!document.getElementById('feed')){const main=document.querySelector('main.app');if(!main)return;const section=document.createElement('section');section.id='feed';section.className='screen';section.innerHTML='<div class="card"><button class="btn secondary" id="feedBackBtn">← Retour aux défis</button><h2>Fil d’actualité</h2><div id="postComposerMount" style="display:none"></div><div id="feedList"></div></div>';main.appendChild(section);document.getElementById('feedBackBtn').onclick=()=>window.show?.('home');}
+  const card=document.querySelector('#feed .card'); if(card&&!document.getElementById('feedList')){const list=document.createElement('div');list.id='feedList';card.appendChild(list);} if(card&&!document.getElementById('postComposerMount')){const mount=document.createElement('div');mount.id='postComposerMount';mount.style.display='none';card.insertBefore(mount,document.getElementById('feedList'));}
 }
-
-function ensureFeedShell() {
-  if (!document.getElementById('feed')) {
-    const main = document.querySelector('main.app');
-    if (!main) return;
-    const section = document.createElement('section');
-    section.id = 'feed';
-    section.className = 'screen';
-    section.innerHTML = '<div class="card"><button class="btn secondary" id="feedBackBtn">← Retour aux défis</button><h2>Fil d’actualité</h2><div id="postComposerMount"></div><div id="feedList"></div></div>';
-    main.appendChild(section);
-    document.getElementById('feedBackBtn').onclick = () => window.show ? show('home') : null;
-  }
-  const card = document.querySelector('#feed .card');
-  if (card && !document.getElementById('postComposerMount')) {
-    const h2 = card.querySelector('h2');
-    const mount = document.createElement('div');
-    mount.id = 'postComposerMount';
-    h2?.insertAdjacentElement('afterend', mount);
-  }
-  if (card && !document.getElementById('feedList')) {
-    const list = document.createElement('div');
-    list.id = 'feedList';
-    card.appendChild(list);
-  }
+function ensureModal(){
+  let modal=document.getElementById('publishModal');
+  if(modal)return modal;
+  modal=document.createElement('div');modal.id='publishModal';modal.className='publishModal';modal.innerHTML=`<div class="publishOverlay"></div><section class="publishSheet"><div class="publishHandle"></div><header class="publishHeader"><button id="publishBack" class="publishIconBtn">←</button><div><b id="publishTitle">Créer une publication</b><span id="publishSub">Choisis ce que tu veux partager</span></div><button id="publishClose" class="publishIconBtn">×</button></header><div id="publishBody" class="publishBody"></div></section>`;document.body.appendChild(modal);modal.querySelector('.publishOverlay').onclick=closeComposer;modal.querySelector('#publishClose').onclick=closeComposer;modal.querySelector('#publishBack').onclick=()=>{modalState.type=null;renderCategoryChoice();};return modal;
 }
-
-function fieldTemplate() {
-  if (selectedPostType === 'meal') return `
-    <input id="postFood" placeholder="Aliment ou plat — ex : Bowl poulet riz légumes">
-    <input id="postQuantity" placeholder="Quantité — ex : 150 g de poulet, 80 g de riz">
-    <textarea id="postRecipe" placeholder="Recette / composition — ex : cuisson, ingrédients, sauce, assaisonnement"></textarea>
-  `;
-  if (selectedPostType === 'session') return `
-    <input id="postExercise" placeholder="Exercice pratiqué — ex : Hip thrust, presse, tirage vertical">
-    <input id="postSets" placeholder="Nombre de séries — ex : 4 séries de 12">
-    <textarea id="postRecipe" placeholder="Détails de la séance — charges, sensations, repos, objectif"></textarea>
-  `;
-  return `
-    <input id="postExercise" placeholder="Zone ou exercice suivi — ex : fessiers, dos, cardio, posture">
-    <input id="postQuantity" placeholder="Mesure / repère — ex : -2 cm taille, +10 kg hip thrust, 3 séances/semaine">
-    <textarea id="postRecipe" placeholder="Ce qui a changé — énergie, régularité, poids, mensurations, ressenti"></textarea>
-  `;
+function openComposer(type=null){document.body.classList.remove('composer-open');ensureModal();modalState={type,selectedExercises:[],selectedFoods:[],imageData:'',progressCompare:false};if(type)renderForm(type);else renderCategoryChoice();document.getElementById('publishModal').classList.add('open');}
+function closeComposer(){document.getElementById('publishModal')?.classList.remove('open');document.body.classList.remove('composer-open');}
+function setTitle(title,sub){document.getElementById('publishTitle').textContent=title;document.getElementById('publishSub').textContent=sub;document.getElementById('publishBack').style.visibility=modalState.type?'visible':'hidden';}
+function renderCategoryChoice(){modalState.type=null;setTitle('Créer une publication','Choisis ce que tu veux partager');const body=document.getElementById('publishBody');body.innerHTML=`<div class="publishChoiceGrid"><button class="publishChoice meal" data-type="meal"><span>🍽️</span><b>Mon repas</b><small>Aliments, quantité, photo</small></button><button class="publishChoice session" data-type="session"><span>🏋️‍♀️</span><b>Ma séance</b><small>Exercices, repos, ressenti</small></button><button class="publishChoice progress" data-type="progress"><span>✨</span><b>Mes progrès</b><small>Photo, comparaison, évolution</small></button></div>`;body.querySelectorAll('.publishChoice').forEach(btn=>btn.onclick=()=>renderForm(btn.dataset.type));}
+function renderForm(type){modalState.type=type;modalState.imageData='';setTitle(labels[type],type==='session'?'Raconte ta séance':type==='meal'?'Partage ton repas':'Montre ton évolution');const body=document.getElementById('publishBody');body.innerHTML= type==='session'?sessionForm():type==='meal'?mealForm():progressForm();bindForm(type);}
+function sessionForm(){return `<div class="publishForm session"><div class="fieldRow"><input id="sessionDuration" placeholder="Temps de séance — ex : 45 min"><input id="sessionRest" placeholder="Temps de repos — ex : 1 min 30"></div>${searchBox('exerciseSearch','Exercice effectué — écris pour filtrer','exerciseSuggestions','selectedExercises')}<textarea id="sessionFeeling" placeholder="Ton ressenti — énergie, difficulté, fierté, charge utilisée..."></textarea>${photoBox()}<button class="publishSubmit">Publier ma séance</button><div class="publishStatus"></div></div>`}
+function mealForm(){return `<div class="publishForm meal">${searchBox('foodSearch','Aliment ou plat — écris pour filtrer','foodSuggestions','selectedFoods')}<input id="mealQuantity" placeholder="Quantité — ex : 150 g, 1 bol, 2 œufs"><textarea id="mealNote" placeholder="Détail du repas — recette, composition, sauce, cuisson..."></textarea>${photoBox()}<button class="publishSubmit">Publier mon repas</button><div class="publishStatus"></div></div>`}
+function progressForm(){const comp=comparisonHtml();return `<div class="publishForm progress"><textarea id="progressFeeling" placeholder="Ce qui a changé — poids, mensurations, régularité, énergie, confiance..."></textarea><label class="compareToggle"><input id="progressCompare" type="checkbox"> <span>Repartager automatiquement mon premier et mon dernier défi</span></label><div id="comparisonPreview">${comp}</div>${photoBox()}<button class="publishSubmit">Publier mes progrès</button><div class="publishStatus"></div></div>`}
+function searchBox(inputId,placeholder,suggestionsId,selectedId){return `<div class="smartSearch"><input id="${inputId}" placeholder="${placeholder}"><div id="${suggestionsId}" class="suggestions"></div><div id="${selectedId}" class="selectedTags"></div></div>`}
+function photoBox(){return `<label class="photoDrop"><input id="publishImage" type="file" accept="image/*" capture="environment"><span>＋ Ajouter une photo</span><small>Image compressée automatiquement</small></label><img id="publishPreview" class="publishPreview" alt="Aperçu">`}
+function bindForm(type){
+  const img=document.getElementById('publishImage'); if(img)img.onchange=handleImage;
+  document.querySelector('.publishSubmit').onclick=publishPost;
+  if(type==='session')bindSmartSearch('exerciseSearch','exerciseSuggestions','selectedExercises',exerciseOptions(),modalState.selectedExercises);
+  if(type==='meal')bindSmartSearch('foodSearch','foodSuggestions','selectedFoods',foodOptions,modalState.selectedFoods);
+  const cb=document.getElementById('progressCompare'); if(cb)cb.onchange=()=>{modalState.progressCompare=cb.checked;document.getElementById('comparisonPreview').classList.toggle('on',cb.checked)};
 }
-
-function renderComposer() {
-  ensureFeedShell();
-  const mount = document.getElementById('postComposerMount');
-  if (!mount) return;
-  mount.innerHTML = `
-    <div class="postComposer">
-      <h3>Créer une publication</h3>
-      <div class="postTabs">
-        <button class="postTab meal ${selectedPostType==='meal'?'active':''}" data-type="meal">🍽️ Mon repas</button>
-        <button class="postTab session ${selectedPostType==='session'?'active':''}" data-type="session">🏋️‍♀️ Ma séance</button>
-        <button class="postTab progress ${selectedPostType==='progress'?'active':''}" data-type="progress">✨ Mes progrès</button>
-      </div>
-      <div class="postFields">
-        <textarea id="postDescription" placeholder="Description de ta publication"></textarea>
-        ${fieldTemplate()}
-        <input id="postImage" type="file" accept="image/*" capture="environment">
-        <img id="postImagePreview" class="postImagePreview" alt="Aperçu">
-        <button class="btn postCreateButton" id="publishPostBtn">Publier</button>
-        <div id="postStatus" class="postStatus"></div>
-      </div>
-    </div>
-  `;
-  document.querySelectorAll('.postTab').forEach(button => button.onclick = () => { selectedPostType = button.dataset.type; compressedImage = ''; renderComposer(); window.LaraModernUI?.enhanceFeed?.(); });
-  document.getElementById('postImage').onchange = handleImage;
-  document.getElementById('publishPostBtn').onclick = publishPost;
-  window.LaraModernUI?.enhanceFeed?.();
-}
-
-function setPostStatus(text, type='ok') {
-  const box = document.getElementById('postStatus');
-  if (!box) return;
-  box.className = 'postStatus on ' + type;
-  box.textContent = text;
-}
-
-async function handleImage(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  if (!file.type.startsWith('image/')) return setPostStatus('Choisis une image valide.', 'err');
-  try {
-    compressedImage = await compressImage(file);
-    const preview = document.getElementById('postImagePreview');
-    if (preview) { preview.src = compressedImage; preview.classList.add('on'); }
-    setPostStatus('Image ajoutée ✓', 'ok');
-  } catch {
-    setPostStatus('Image trop lourde ou impossible à lire.', 'err');
-  }
-}
-
-async function compressImage(file) {
-  const data = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
-  const image = await new Promise((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = data; });
-  const max = 720;
-  const ratio = Math.min(1, max / Math.max(image.width, image.height));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(image.width * ratio);
-  canvas.height = Math.round(image.height * ratio);
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg', 0.72);
-}
-
-async function publishPost() {
-  if (!initFirebasePosts()) return setPostStatus('Firebase charge encore. Réessaie dans quelques secondes.', 'err');
-  if (!currentUser) return setPostStatus('Connecte-toi pour publier.', 'err');
-  const description = document.getElementById('postDescription')?.value.trim() || '';
-  const food = document.getElementById('postFood')?.value.trim() || '';
-  const quantity = document.getElementById('postQuantity')?.value.trim() || '';
-  const recipe = document.getElementById('postRecipe')?.value.trim() || '';
-  const exercise = document.getElementById('postExercise')?.value.trim() || '';
-  const sets = document.getElementById('postSets')?.value.trim() || '';
-  if (!description && !food && !exercise && !recipe && !sets) return setPostStatus('Ajoute au moins une description ou un détail.', 'err');
-  try {
-    document.getElementById('publishPostBtn').disabled = true;
-    await addDoc(collection(db, 'posts'), {
-      uid: currentUser.uid,
-      name: currentName(),
-      type: selectedPostType,
-      description,
-      food,
-      quantity,
-      recipe,
-      exercise,
-      sets,
-      imageData: compressedImage || '',
-      createdAt: serverTimestamp()
-    });
-    compressedImage = '';
-    renderComposer();
-    setTimeout(() => window.LaraModernUI?.closeComposer?.(), 450);
-  } catch (error) {
-    console.warn(error);
-    setPostStatus('Publication impossible : vérifie les règles Firestore ou choisis une image plus légère.', 'err');
-    const btn = document.getElementById('publishPostBtn');
-    if (btn) btn.disabled = false;
-  }
-}
-
-function startPostsFeed() {
-  if (!initFirebasePosts() || unsubscribePosts) return;
-  try {
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(40));
-    unsubscribePosts = onSnapshot(q, snapshot => {
-      window.LARA_SOCIAL_POSTS = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      renderPostsFeed();
-    }, error => console.warn('Posts feed error', error));
-  } catch (error) {
-    console.warn('Impossible de lancer le fil social', error);
-  }
-}
-
-function renderPostsFeed() {
-  ensureFeedShell();
-  renderComposer();
-  const list = document.getElementById('feedList');
-  if (!list) return;
-  const posts = window.LARA_SOCIAL_POSTS || [];
-  const cloud = window.LARA_CLOUD_FEED || [];
-  const postHtml = posts.map(postCard).join('');
-  const oldActivity = cloud.length ? '<h3>Défis réalisés</h3>' + cloud.slice(0,10).map(item => `<article class="feedItem"><div class="feedAvatar">${esc((item.name||'?').charAt(0).toUpperCase())}</div><div class="feedContent"><b>${esc(item.name||'Participante')}<span class="onlineBadge">Défi</span></b><p>${esc(item.emoji||'✨')} ${esc(item.title||'Défi terminé')}</p><span>${esc(item.mode==='duo'?'Duo':'Solo')} • ${esc(item.level||'')}</span></div></article>`).join('') : '';
-  list.innerHTML = postHtml || '<div class="emptySocial">Aucune publication pour le moment.</div>';
-  if (oldActivity) list.insertAdjacentHTML('beforeend', oldActivity);
-  window.LaraModernUI?.enhanceFeed?.();
-}
-
-function postCard(post) {
-  const type = post.type || 'meal';
-  const details = [];
-  if (post.food) details.push('Aliment : ' + post.food);
-  if (post.exercise) details.push('Exercice : ' + post.exercise);
-  if (post.sets) details.push('Séries : ' + post.sets);
-  if (post.quantity) details.push('Quantité / repère : ' + post.quantity);
-  if (post.recipe) details.push((type==='meal'?'Recette':'Détails') + ' : ' + post.recipe);
-  return `<article class="postCard ${esc(type)}">
-    <div class="postHead">
-      <div class="postAuthor"><div class="postAvatar">${esc((post.name||'?').charAt(0).toUpperCase())}</div><div class="postMeta"><b>${esc(post.name||'Participante')}</b><span>Publication</span></div></div>
-      <span class="postBadge ${esc(type)}">${typeEmoji[type]||'✨'} ${esc(typeLabels[type]||'Post')}</span>
-    </div>
-    ${post.description?`<p class="postText">${esc(post.description)}</p>`:''}
-    ${details.length?`<div class="postDetails">${details.map(item=>`<span class="postChip">${esc(item)}</span>`).join('')}</div>`:''}
-    ${post.imageData?`<img class="postPhoto" src="${post.imageData}" alt="Image de publication">`:''}
-  </article>`;
-}
-
-const originalOpenFeed = window.openFeed;
-window.openFeed = function() {
-  if (typeof originalOpenFeed === 'function') originalOpenFeed();
-  ensureFeedShell();
-  initFirebasePosts();
-  renderPostsFeed();
-  startPostsFeed();
-  if (typeof window.show === 'function') window.show('feed');
-};
-
-function bootSocialPosts() {
-  ensureFeedShell();
-  renderComposer();
-  initFirebasePosts();
-  if (currentUser) startPostsFeed();
-}
-
-document.addEventListener('DOMContentLoaded', () => setTimeout(bootSocialPosts, 500));
-setTimeout(bootSocialPosts, 1200);
-setTimeout(bootSocialPosts, 2500);
+function bindSmartSearch(inputId,suggestionsId,selectedId,options,selected){const input=document.getElementById(inputId),sug=document.getElementById(suggestionsId),tags=document.getElementById(selectedId);function drawTags(){tags.innerHTML=selected.map((x,i)=>`<button class="selectedTag" data-i="${i}">${esc(x)} ×</button>`).join('');tags.querySelectorAll('.selectedTag').forEach(btn=>btn.onclick=()=>{selected.splice(Number(btn.dataset.i),1);drawTags();});}function drawSuggestions(){const term=input.value.trim().toLowerCase();const pool=options.filter(x=>!selected.includes(x)).filter(x=>!term||x.toLowerCase().includes(term)).slice(0,8);sug.innerHTML=pool.map(x=>`<button type="button">${esc(x)}</button>`).join('');sug.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{selected.push(btn.textContent);input.value='';drawTags();drawSuggestions();input.focus();});}input.oninput=drawSuggestions;input.onfocus=drawSuggestions;drawTags();drawSuggestions();}
+function setStatus(text,type='ok'){const box=document.querySelector('.publishStatus');if(!box)return;box.className='publishStatus on '+type;box.textContent=text;}
+async function handleImage(e){const file=e.target.files?.[0];if(!file)return;try{modalState.imageData=await compressImage(file);const preview=document.getElementById('publishPreview');preview.src=modalState.imageData;preview.classList.add('on');setStatus('Photo ajoutée ✓','ok');}catch{setStatus('Photo trop lourde ou impossible à lire.','err');}}
+async function compressImage(file){const data=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)});const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=data});const max=560;const ratio=Math.min(1,max/Math.max(img.width,img.height));const canvas=document.createElement('canvas');canvas.width=Math.round(img.width*ratio);canvas.height=Math.round(img.height*ratio);canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);return canvas.toDataURL('image/jpeg',.62)}
+function comparisonData(){const h=history();if(!h.length)return null;const first=h[h.length-1];const last=h[0];return{first,last};}
+function challengeLabel(item){return item?.title||item?.name||item?.challenge||item?.ct||'Défi réalisé'}
+function comparisonHtml(){const comp=comparisonData();if(!comp)return '<div class="compareBox empty">Aucun défi trouvé pour créer une comparaison.</div>';return `<div class="compareBox"><div><small>Premier défi</small><b>${esc(challengeLabel(comp.first))}</b></div><div><small>Dernier défi</small><b>${esc(challengeLabel(comp.last))}</b></div></div>`}
+async function publishPost(){if(!initFirebasePosts())return setStatus('Firebase charge encore. Réessaie dans quelques secondes.','err');if(!currentUser)return setStatus('Connecte-toi pour publier.','err');const type=modalState.type;if(!type)return;let payload={uid:currentUser.uid,name:currentName(),type,imageData:modalState.imageData||'',likes:[],likesCount:0,createdAt:serverTimestamp()};if(type==='session'){payload.duration=document.getElementById('sessionDuration')?.value.trim()||'';payload.rest=document.getElementById('sessionRest')?.value.trim()||'';payload.exercises=[...modalState.selectedExercises];payload.feeling=document.getElementById('sessionFeeling')?.value.trim()||'';if(!payload.exercises.length&&!payload.feeling&&!payload.imageData)return setStatus('Ajoute au moins un exercice, un ressenti ou une photo.','err');}
+if(type==='meal'){payload.foods=[...modalState.selectedFoods];payload.quantity=document.getElementById('mealQuantity')?.value.trim()||'';payload.note=document.getElementById('mealNote')?.value.trim()||'';if(!payload.foods.length&&!payload.note&&!payload.imageData)return setStatus('Ajoute au moins un aliment, une note ou une photo.','err');}
+if(type==='progress'){payload.feeling=document.getElementById('progressFeeling')?.value.trim()||'';payload.compare=modalState.progressCompare?comparisonData():null;if(!payload.feeling&&!payload.imageData&&!payload.compare)return setStatus('Ajoute une photo, un texte ou la comparaison de défis.','err');}
+try{document.querySelector('.publishSubmit').disabled=true;await addDoc(collection(db,'posts'),payload);setStatus('Publication envoyée ✓','ok');setTimeout(()=>{closeComposer();window.openFeed?.();},450);}catch(err){console.warn(err);setStatus('Publication impossible : vérifie Firestore ou choisis une photo plus légère.','err');const b=document.querySelector('.publishSubmit');if(b)b.disabled=false;}}
+function startPostsFeed(){if(!initFirebasePosts()||unsubscribePosts)return;try{const q=query(collection(db,'posts'),orderBy('createdAt','desc'),limit(50));unsubscribePosts=onSnapshot(q,snap=>{window.LARA_SOCIAL_POSTS=snap.docs.map(d=>{const post={id:d.id,...d.data()};postCache.set(d.id,post);return post});renderPostsFeed();},err=>console.warn('Posts feed',err));}catch(e){console.warn(e)}}
+function renderPostsFeed(){ensureFeedShell();const list=document.getElementById('feedList');if(!list)return;const posts=window.LARA_SOCIAL_POSTS||[];const cloud=window.LARA_CLOUD_FEED||[];list.innerHTML=(posts.length?posts.map(postCard).join(''):'<div class="emptySocial">Aucune publication pour le moment.</div>')+(cloud.length?'<h3>Défis réalisés</h3>'+cloud.slice(0,8).map(activityCard).join(''):'');bindLikeButtons();window.LaraModernUI?.enhanceFeed?.();}
+function activityCard(item){return `<article class="feedItem"><div class="feedAvatar">${esc((item.name||'?').charAt(0).toUpperCase())}</div><div class="feedContent"><b>${esc(item.name||'Participante')}<span class="onlineBadge">Défi</span></b><p>${esc(item.emoji||'✨')} ${esc(item.title||'Défi terminé')}</p><span>${esc(item.mode==='duo'?'Duo':'Solo')} • ${esc(item.level||'')}</span></div></article>`}
+function postCard(p){const liked=(p.likes||[]).includes(currentUser?.uid);return `<article class="postCard ${esc(p.type||'meal')}" data-type="${esc(p.type||'meal')}"><div class="postHead"><div class="postAuthor"><div class="postAvatar">${esc((p.name||'?').charAt(0).toUpperCase())}</div><div class="postMeta"><b>${esc(p.name||'Participante')}</b><span>${esc(labels[p.type]||'Publication')}</span></div></div><span class="postBadge ${esc(p.type)}">${emoji[p.type]||'✨'} ${esc(labels[p.type]||'Post')}</span></div>${postContent(p)}${p.imageData?`<img class="postPhoto" src="${p.imageData}" alt="Image de publication">`:''}<div class="postActions"><button class="likeBtn ${liked?'liked':''}" data-id="${p.id}">♥ <span>${Number(p.likesCount||0)}</span></button></div></article>`}
+function chips(items,label){return items?.length?`<div class="postDetails">${items.map(x=>`<span class="postChip">${label?label+' : ':''}${esc(x)}</span>`).join('')}</div>`:''}
+function postContent(p){if(p.type==='session')return `${p.duration||p.rest?`<div class="postDetails">${p.duration?`<span class="postChip">Temps : ${esc(p.duration)}</span>`:''}${p.rest?`<span class="postChip">Repos : ${esc(p.rest)}</span>`:''}</div>`:''}${chips(p.exercises,'Exo')}${p.feeling?`<p class="postText">${esc(p.feeling)}</p>`:''}`;if(p.type==='meal')return `${chips(p.foods,'Aliment')}${p.quantity?`<div class="postDetails"><span class="postChip">Quantité : ${esc(p.quantity)}</span></div>`:''}${p.note?`<p class="postText">${esc(p.note)}</p>`:''}`;const comp=p.compare;return `${p.feeling?`<p class="postText">${esc(p.feeling)}</p>`:''}${comp?`<div class="compareBox on"><div><small>Premier défi</small><b>${esc(challengeLabel(comp.first))}</b></div><div><small>Dernier défi</small><b>${esc(challengeLabel(comp.last))}</b></div></div>`:''}`}
+function bindLikeButtons(){document.querySelectorAll('.likeBtn').forEach(btn=>btn.onclick=()=>toggleLike(btn.dataset.id));}
+async function toggleLike(id){if(!initFirebasePosts()||!currentUser)return;const p=postCache.get(id);if(!p)return;const liked=(p.likes||[]).includes(currentUser.uid);try{await updateDoc(doc(db,'posts',id),{likes:liked?arrayRemove(currentUser.uid):arrayUnion(currentUser.uid),likesCount:increment(liked?-1:1)});}catch(e){console.warn('Like impossible',e)}}
+const originalOpenFeed=window.openFeed;window.openFeed=function(){if(typeof originalOpenFeed==='function')originalOpenFeed();ensureFeedShell();initFirebasePosts();renderPostsFeed();startPostsFeed();window.show?.('feed');};
+function boot(){ensureFeedShell();initFirebasePosts();if(currentUser)startPostsFeed();}
+document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,350));setTimeout(boot,1200);setTimeout(boot,2400);
+window.LaraComposer={open:openComposer,close:closeComposer,toggleLike};
