@@ -50,12 +50,15 @@ function cloudStatus(text, type = 'ok') {
 
 function readableError(error) {
   const code = error?.code || '';
-  if (code.includes('auth/email-already-in-use')) return 'cet e-mail existe déjà. Clique sur “Me connecter”.';
-  if (code.includes('auth/invalid-credential') || code.includes('auth/wrong-password')) return 'e-mail ou mot de passe incorrect.';
-  if (code.includes('auth/user-not-found')) return 'aucun compte trouvé avec cet e-mail.';
-  if (code.includes('auth/weak-password')) return 'mot de passe trop faible : utilise au moins 6 caractères.';
-  if (code.includes('permission-denied')) return 'Firestore bloque l’accès. Vérifie les règles de sécurité.';
-  return error?.message || 'erreur inconnue';
+  if (code.includes('auth/email-already-in-use')) return 'Compte déjà créé avec cet e-mail. Clique sur “Me connecter”. Code : ' + code;
+  if (code.includes('auth/operation-not-allowed')) return 'Connexion e-mail/mot de passe non activée dans Firebase Authentication. Code : ' + code;
+  if (code.includes('auth/unauthorized-domain')) return 'Domaine non autorisé dans Firebase Authentication. Ajoute managementtrika-pixel.github.io dans les domaines autorisés. Code : ' + code;
+  if (code.includes('auth/invalid-credential') || code.includes('auth/wrong-password')) return 'E-mail ou mot de passe incorrect. Code : ' + code;
+  if (code.includes('auth/user-not-found')) return 'Aucun compte trouvé avec cet e-mail. Code : ' + code;
+  if (code.includes('auth/weak-password')) return 'Mot de passe trop faible : utilise au moins 6 caractères. Code : ' + code;
+  if (code.includes('permission-denied')) return 'Compte créé/connecté, mais Firestore bloque la sauvegarde. Vérifie les règles Firestore. Code : ' + code;
+  if (code.includes('failed-precondition')) return 'Firestore n’est peut-être pas encore créé ou activé. Code : ' + code;
+  return (error?.message || 'Erreur inconnue') + (code ? ' Code : ' + code : '');
 }
 
 function currentProfile() {
@@ -168,6 +171,16 @@ async function uploadUserData(user) {
   }, { merge: true });
 }
 
+async function tryUploadUserData(user) {
+  try {
+    await uploadUserData(user);
+    return { ok: true };
+  } catch (error) {
+    console.warn('Sauvegarde Firestore impossible', error);
+    return { ok: false, message: readableError(error) };
+  }
+}
+
 async function downloadUserData(user) {
   const snap = await getDoc(doc(db, 'users', user.uid));
   if (!snap.exists()) {
@@ -180,6 +193,16 @@ async function downloadUserData(user) {
     return true;
   }
   return false;
+}
+
+async function tryDownloadUserData(user) {
+  try {
+    return await downloadUserData(user);
+  } catch (error) {
+    console.warn('Restauration Firestore impossible', error);
+    cloudStatus(readableError(error), 'err');
+    return false;
+  }
 }
 
 function updateLocalProfileFromAuth(user, name = '') {
@@ -200,8 +223,9 @@ async function createAccount() {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     currentFirebaseUser = credential.user;
     updateLocalProfileFromAuth(currentFirebaseUser, name);
-    await uploadUserData(currentFirebaseUser);
-    cloudStatus('Compte créé ✓', 'ok');
+    const sync = await tryUploadUserData(currentFirebaseUser);
+    if (!sync.ok) cloudStatus('Compte créé ✓ mais sauvegarde cloud bloquée : ' + sync.message, 'err');
+    else cloudStatus('Compte créé et sauvegardé ✓', 'ok');
     showAppWhenLoggedIn();
   } catch (error) {
     cloudStatus(readableError(error), 'err');
@@ -215,10 +239,11 @@ async function loginAccount() {
     if (!email || !password) return cloudStatus('Entre ton e-mail et ton mot de passe.', 'err');
     const credential = await signInWithEmailAndPassword(auth, email, password);
     currentFirebaseUser = credential.user;
-    const restored = await downloadUserData(currentFirebaseUser);
+    const restored = await tryDownloadUserData(currentFirebaseUser);
     if (!restored) updateLocalProfileFromAuth(currentFirebaseUser, $('authName')?.value.trim());
-    await uploadUserData(currentFirebaseUser);
-    cloudStatus('Connectée ✓', 'ok');
+    const sync = await tryUploadUserData(currentFirebaseUser);
+    if (!sync.ok) cloudStatus('Connectée ✓ mais sauvegarde cloud bloquée : ' + sync.message, 'err');
+    else cloudStatus('Connectée ✓', 'ok');
     showAppWhenLoggedIn();
   } catch (error) {
     cloudStatus(readableError(error), 'err');
@@ -268,7 +293,7 @@ function startCloudFeed() {
     feedUnsubscribe = onSnapshot(feedQuery, snapshot => {
       window.LARA_CLOUD_FEED = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
       if (typeof window.openFeed === 'function' && document.getElementById('feed')?.classList.contains('on')) window.openFeed();
-    });
+    }, error => console.warn('Lecture fil cloud impossible', error));
   } catch (error) {
     console.warn('Fil cloud non disponible', error);
   }
@@ -326,11 +351,11 @@ function initCloudAuth() {
       }
       try {
         if (!restoredOnce) {
-          const restored = await downloadUserData(user);
+          const restored = await tryDownloadUserData(user);
           if (!restored) updateLocalProfileFromAuth(user);
           restoredOnce = true;
         }
-        await uploadUserData(user);
+        await tryUploadUserData(user);
       } catch (error) {
         console.warn('Restauration cloud impossible', error);
       }
