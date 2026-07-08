@@ -8,24 +8,33 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style-1.css?v=4">
-<link rel="stylesheet" href="style-2.css?v=4">
-<link rel="stylesheet" href="style-3.css?v=4">
+<link rel="stylesheet" href="style-1.css?v=8">
+<link rel="stylesheet" href="style-2.css?v=8">
+<link rel="stylesheet" href="style-3.css?v=8">
+<link rel="stylesheet" href="features-v4-a.css?v=8">
+<link rel="stylesheet" href="features-v4-b.css?v=8">
 </head>
 <body>
 <main class="app">
 <header class="top"><div class="brand"><div class="logo">✦</div><b>Les défis de Lara</b></div><div class="topActions"><button id="profileNav" class="hide" onclick="openProfile()">Mon profil</button><a href="https://instagram.com/bylaracoaching" target="_blank" rel="noopener">Instagram</a></div></header>
-<section id="login" class="screen on"><div class="card"><span class="tag">120 défis sportifs</span><h1>Bienvenue</h1><p class="sub">Entre ton prénom pour accéder à tes défis et retrouver ton profil sur cet appareil.</p><div class="grid"><input id="name" autocomplete="given-name" placeholder="Ton prénom"><input id="email" type="email" autocomplete="email" placeholder="Ton e-mail (facultatif)"><button class="btn" onclick="enterApp()">Entrer dans l’application</button><button class="btn secondary" onclick="guest()">Continuer en invitée</button></div></div></section>
-<section id="home" class="screen"><div class="card"><span class="tag">Ton défi, ton rythme</span><h1>Les défis de Lara</h1><p class="sub" id="hello"></p><p class="counter">120 défis disponibles • Solo et Duo • 3 niveaux</p><h3>1. Choisis ton niveau</h3><div class="grid levels"><button class="level" data-v="debutant" onclick="pickLevel(this)">🌸<br>Débutant</button><button class="level" data-v="intermediaire" onclick="pickLevel(this)">✨<br>Intermédiaire</button><button class="level" data-v="confirme" onclick="pickLevel(this)">🔥<br>Confirmé</button></div><h3>2. Solo ou duo ?</h3><div class="grid modes"><button class="mode" onclick="start('solo')">🧘‍♀️<b>Solo</b>Un défi pour toi</button><button class="mode" onclick="start('duo')">👭<b>Duo</b>Un défi à deux</button></div></div></section>
+<section id="login" class="screen on"><div class="card"><span class="tag">504 défis sportifs</span><h1>Bienvenue</h1><p class="sub">Entre ton prénom pour accéder à tes défis et retrouver ton profil sur cet appareil.</p><div class="grid"><input id="name" autocomplete="given-name" placeholder="Ton prénom"><input id="email" type="email" autocomplete="email" placeholder="Ton e-mail (facultatif)"><button class="btn" onclick="enterApp()">Entrer dans l’application</button><button class="btn secondary" onclick="guest()">Continuer en invitée</button></div></div></section>
+<section id="home" class="screen"><div class="card"><span class="tag">Ton défi, ton rythme</span><h1>Les défis de Lara</h1><p class="sub" id="hello"></p><p class="counter">504 défis disponibles • Tous en français • Solo et Duo • 3 niveaux</p><h3>1. Choisis ton niveau</h3><div class="grid levels"><button class="level" data-v="debutant" onclick="pickLevel(this)">🌸<br>Débutant</button><button class="level" data-v="intermediaire" onclick="pickLevel(this)">✨<br>Intermédiaire</button><button class="level" data-v="confirme" onclick="pickLevel(this)">🔥<br>Confirmé</button></div><h3>2. Solo ou duo ?</h3><div class="grid modes"><button class="mode" onclick="start('solo')">🧘‍♀️<b>Solo</b>Un défi pour toi</button><button class="mode" onclick="start('duo')">👭<b>Duo</b>Un défi à deux</button></div></div></section>
 <section id="challenge" class="screen"><div class="card"><button class="btn secondary" onclick="show('home')">← Retour</button><div class="challenge"><button id="favoriteBtn" class="favoriteBtn" onclick="toggleFavorite()" aria-label="Ajouter aux favoris">♡</button><div><div class="emoji" id="ce">🔥</div><span class="category" id="cc"></span><h2 id="ct"></h2><p class="sub" id="cd"></p></div><p class="sub" id="tip"></p></div><div class="actions"><button class="btn secondary" onclick="draw()">Changer</button><button class="btn" onclick="finish()">Défi terminé ✓</button></div></div></section>
 <section id="feedback" class="screen"><div class="card"><h2>Défi relevé ?</h2><div class="grid"><div class="actions"><input id="min" type="number" min="0" placeholder="Minutes"><input id="sec" type="number" min="0" max="59" placeholder="Secondes"></div><div class="grid diff"><button data-v="Facile" onclick="difficulty(this)">🌸 Facile</button><button data-v="Bien dosé" onclick="difficulty(this)">✨ Bien dosé</button><button data-v="Intense" onclick="difficulty(this)">🔥 Intense</button></div><textarea id="comment" placeholder="Ton commentaire"></textarea><button class="btn" onclick="saveResult()">Valider ma réussite</button></div></div></section>
 <section id="success" class="screen"><div class="card"><h2>Bravo, défi validé !</h2><p class="sub" id="summary"></p><div class="selfie"><b>Ajoute ton selfie à la story</b><input id="photo" type="file" accept="image/*" capture="user" onchange="photoChange(event)"><img id="preview" alt="Aperçu du selfie"><p class="tiny">La photo reste uniquement sur ton téléphone.</p></div><div id="mailStatus" class="status"></div><div class="grid"><button class="btn" id="mailBtn" onclick="sendMail()">✉ Envoyer mon avis à Lara</button><button class="btn" onclick="shareStory()">▣ Créer ma story Instagram</button><p class="tiny">Le visuel est envoyé au menu de partage du téléphone. Sur les appareils compatibles, sélectionne Instagram Stories.</p><button class="btn secondary" onclick="show('home')">Nouveau défi</button><button class="btn ghost" onclick="openProfile()">Voir mon profil et mes statistiques</button></div></div></section>
 <section id="profile" class="screen"><div class="card"><button class="btn secondary" onclick="show('home')">← Retour aux défis</button><div class="profileHead"><div class="avatar" id="avatar">L</div><div><h2 id="profileName">Mon profil</h2><p class="sub" id="profileEmail"></p></div></div><div class="statsGrid"><div class="stat"><b id="statTotal">0</b><span>Défis terminés</span></div><div class="stat"><b id="statWeek">0</b><span>Cette semaine</span></div><div class="stat"><b id="statTime">0</b><span>Minutes cumulées</span></div><div class="stat"><b id="statMode">—</b><span>Mode préféré</span></div></div><div class="sectionBox"><h3>Mes statistiques</h3><div class="chips" id="profileStats"></div></div><div class="sectionBox"><h3>Mes exercices préférés</h3><div class="chips" id="preferredCategories"></div><div id="favoriteList"></div></div><div class="sectionBox"><h3>Mes derniers défis</h3><div id="recentList"></div></div><div class="profileActions"><button class="btn ghost" onclick="editProfile()">Modifier mon profil</button><button class="btn danger" onclick="clearHistory()">Effacer mes statistiques</button></div></div></section>
 </main>
-<script src="data-config.js?v=5"></script>
-<script src="data-build.js?v=5"></script>
-<script src="app-1.js?v=4"></script>
-<script src="app-2.js?v=4"></script>
-<script src="app-3.js?v=4"></script>
+<script src="data-500.js?v=8"></script>
+<script src="app-1.js?v=8"></script>
+<script src="app-2.js?v=8"></script>
+<script src="app-3.js?v=8"></script>
+<script src="features-core-override.js?v=8"></script>
+<script src="features-social-a.js?v=8"></script>
+<script src="features-social-b.js?v=8"></script>
+<script src="features-ui-a.js?v=8"></script>
+<script src="features-ui-b1.js?v=8"></script>
+<script src="features-ui-b2.js?v=8"></script>
+<script src="features-photo-a.js?v=8"></script>
+<script src="features-photo-b.js?v=8"></script>
 </body>
 </html>
