@@ -1,0 +1,14 @@
+{
+  "name": "Les défis de Lara - By Lara Coaching",
+  "short_name": "Défis Lara",
+  "description": "Application de défis sportifs, suivi de progression, publications et motivation fitness par By Lara Coaching.",
+  "start_url": "/les-defis-de-lara/",
+  "scope": "/les-defis-de-lara/",
+  "display": "standalone",
+  "background_color": "#fff7fa",
+  "theme_color": "#d98ca3",
+  "lang": "fr-FR",
+  "orientation": "portrait-primary",
+  "categories": ["fitness", "health", "lifestyle", "sports"],
+  "icons": []
+}
