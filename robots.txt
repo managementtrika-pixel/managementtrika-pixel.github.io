@@ -2,3 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://managementtrika-pixel.github.io/sitemap.xml
+Sitemap: https://managementtrika-pixel.github.io/les-defis-de-lara/sitemap.xml
