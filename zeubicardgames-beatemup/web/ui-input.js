@@ -3,11 +3,12 @@ function hideScreen(id){$(id).classList.remove('active')}
 function hideAllScreens(){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'))}
 function showTouch(){if(matchMedia('(pointer:coarse)').matches||innerWidth<900)$('touchControls').classList.remove('hidden')}
 
+function cardVisual(name,set='PLAYER'){return A[name]?`<img src="${A[name]}">`:`<div class="card-fallback"><span>${set}</span><strong>${name}</strong><i>ZEUBI CARD GAMES</i></div>`}
 function renderCharacterSelect(){
-  const root=$('characterCards');root.innerHTML='';for(const c of Object.values(CHARACTERS)){const unlocked=save.unlockedCharacters.includes(c.id);const b=document.createElement('button');b.className='select-card'+(Game.selectedChar===c.id?' selected':'')+(!unlocked?' locked':'');b.disabled=!unlocked;b.innerHTML=`<img src="${A[c.card]||''}"><div class="shade"></div><div class="copy"><small>${unlocked?c.faction:'VERROUILLÉ'}</small><h3>${c.label}</h3><p>${unlocked?c.desc:`Termine le chapitre ${c.unlockAt-1}`}</p></div>`;b.onclick=()=>{Game.selectedChar=c.id;renderCharacterSelect()};root.appendChild(b)}
+  const root=$('characterCards');root.innerHTML='';for(const c of Object.values(CHARACTERS)){const unlocked=save.unlockedCharacters.includes(c.id);const b=document.createElement('button');b.className='select-card'+(Game.selectedChar===c.id?' selected':'')+(!unlocked?' locked':'');b.disabled=!unlocked;b.innerHTML=`${cardVisual(c.card,c.faction)}<div class="shade"></div><div class="copy"><small>${unlocked?c.faction:'VERROUILLÉ'}</small><h3>${c.label}</h3><p>${unlocked?c.desc:`Termine le chapitre ${c.unlockAt-1}`}</p></div>`;b.onclick=()=>{Game.selectedChar=c.id;renderCharacterSelect()};root.appendChild(b)}
 }
 function renderChapters(){
-  const root=$('chapterCards');root.innerHTML='';for(const c of CHAPTERS){const unlocked=c.id<=save.unlockedChapters;const b=document.createElement('button');b.className='chapter-card'+(!unlocked?' locked':'');b.disabled=!unlocked;const boss=ENEMIES[c.boss];b.innerHTML=`<span class="num">CHAPITRE ${c.id}</span><h3>${c.title}</h3><p>${c.subtitle}</p><div class="best">${unlocked?`Meilleur score : ${(save.scores[c.id]||0).toLocaleString('fr-FR')}`:'Verrouillé'}</div><img src="${A[boss.card]||''}">`;b.onclick=()=>Game.startChapter(c.id);root.appendChild(b)}
+  const root=$('chapterCards');root.innerHTML='';for(const c of CHAPTERS){const unlocked=c.id<=save.unlockedChapters;const b=document.createElement('button');b.className='chapter-card'+(!unlocked?' locked':'');b.disabled=!unlocked;const boss=ENEMIES[c.boss];b.innerHTML=`<span class="num">CHAPITRE ${c.id}</span><h3>${c.title}</h3><p>${c.subtitle}</p><div class="best">${unlocked?`Meilleur score : ${(save.scores[c.id]||0).toLocaleString('fr-FR')}`:'Verrouillé'}</div>${A[boss.card]?`<img src="${A[boss.card]}">`:''}`;b.onclick=()=>Game.startChapter(c.id);root.appendChild(b)}
 }
 function renderCodex(filter='Tous'){
   const filters=['Tous','Ninja','Émeraude','Street','Factions'];$('codexFilters').innerHTML='';for(const f of filters){const b=document.createElement('button');b.textContent=f;b.className=f===filter?'active':'';b.onclick=()=>renderCodex(f);$('codexFilters').appendChild(b)}
@@ -18,7 +19,7 @@ function openCampaign(){Game.mode='campaign';hideAllScreens();renderCharacterSel
 function openSurvival(){Game.mode='survival';hideAllScreens();renderCharacterSelect();showScreen('characterSelect')}
 function backToMenu(){Game.quit()}
 
-$('menuBooster').src=A['Booster Ninja']||A['Roobkage']||'';
+const menuArt=A['Booster Ninja']||A['Roobkage']||'';if(menuArt)$('menuBooster').src=menuArt;else $('menuBooster').style.display='none';
 document.addEventListener('click',e=>{
   const a=e.target.closest('[data-action]')?.dataset.action;if(!a)return;audio.ensure();
   if(a==='campaign')openCampaign();else if(a==='survival')openSurvival();else if(a==='codex'){hideAllScreens();renderCodex();showScreen('codex')}else if(a==='options'){hideAllScreens();syncOptions();showScreen('options')}else if(a==='back'){if($('chapterSelect').classList.contains('active')){hideAllScreens();renderCharacterSelect();showScreen('characterSelect')}else backToMenu()}else if(a==='resume')Game.resume();else if(a==='restart'){hideScreen('pause');hideScreen('result');Game.mode==='survival'?Game.startSurvival():Game.startChapter(Game.level?.id||1)}else if(a==='quit')backToMenu();
