@@ -1,0 +1,45 @@
+name: Build Zeubi Rift Brawl APK
+
+on:
+  push:
+    paths:
+      - 'zeubicardgames-beatemup/**'
+      - '.github/workflows/build-zeubi-apk.yml'
+  pull_request:
+    paths:
+      - 'zeubicardgames-beatemup/**'
+      - '.github/workflows/build-zeubi-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  android-debug-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build debug APK
+        working-directory: zeubicardgames-beatemup
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zeubi-Rift-Brawl-debug-apk
+          path: zeubicardgames-beatemup/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
