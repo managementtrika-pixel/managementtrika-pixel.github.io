@@ -10,133 +10,22 @@
 <body>
   <div id="app">
     <canvas id="game" width="1280" height="720" aria-label="ZeubiCardGames Beat'em Up"></canvas>
-
     <div id="overlay">
-      <section id="menu" class="screen active">
-        <div class="menu-bg"></div>
-        <div class="menu-copy">
-          <div class="brand">ZEUBICARDGAMES</div>
-          <h1>RIFT<br><span>BRAWL</span></h1>
-          <p>Beat'em up 2D · campagne, survie, évolutions et factions.</p>
-          <div class="menu-buttons">
-            <button data-action="campaign">Campagne</button>
-            <button data-action="survival">Survie</button>
-            <button data-action="codex">Cartodex</button>
-            <button data-action="options">Options</button>
-          </div>
-          <div class="version">v0.1 · Android / Web</div>
-        </div>
-        <img id="menuBooster" class="menu-booster" alt="Booster L'Ombre des Ninjas">
-      </section>
-
-      <section id="characterSelect" class="screen panel-screen">
-        <header><button class="back" data-action="back">←</button><div><small>CHOISIS TON PLAYER</small><h2>Personnage</h2></div></header>
-        <div id="characterCards" class="selection-grid"></div>
-        <div class="selection-footer"><button id="confirmCharacter" class="primary">Continuer</button></div>
-      </section>
-
-      <section id="chapterSelect" class="screen panel-screen">
-        <header><button class="back" data-action="back">←</button><div><small>CAMPAGNE</small><h2>Chapitres</h2></div></header>
-        <div id="chapterCards" class="chapter-grid"></div>
-      </section>
-
-      <section id="codex" class="screen panel-screen">
-        <header><button class="back" data-action="back">←</button><div><small>ZEUBICARDGAMES</small><h2>Cartodex</h2></div></header>
-        <div id="codexFilters" class="chips"></div>
-        <div id="codexGrid" class="codex-grid"></div>
-      </section>
-
-      <section id="options" class="screen panel-screen">
-        <header><button class="back" data-action="back">←</button><div><small>RÉGLAGES</small><h2>Options</h2></div></header>
-        <div class="options-list">
-          <label><span>Musique</span><input id="musicToggle" type="checkbox" checked></label>
-          <label><span>Effets sonores</span><input id="sfxToggle" type="checkbox" checked></label>
-          <label><span>Vibrations</span><input id="vibrationToggle" type="checkbox" checked></label>
-          <label><span>Difficulté</span><select id="difficulty"><option value="easy">Tranquille</option><option value="normal" selected>Normal</option><option value="hard">Rang S</option></select></label>
-          <button id="resetSave" class="danger">Réinitialiser la progression</button>
-        </div>
-      </section>
-
-      <section id="pause" class="screen modal-screen">
-        <div class="modal-card">
-          <small>PAUSE</small><h2>Mission suspendue</h2>
-          <button data-action="resume" class="primary">Reprendre</button>
-          <button data-action="restart">Recommencer</button>
-          <button data-action="quit">Quitter la mission</button>
-        </div>
-      </section>
-
-      <section id="result" class="screen modal-screen">
-        <div class="modal-card result-card">
-          <small id="resultEyebrow">MISSION TERMINÉE</small>
-          <h2 id="resultTitle">Rang A</h2>
-          <div id="resultStats"></div>
-          <button id="resultContinue" class="primary">Continuer</button>
-          <button data-action="quit">Menu principal</button>
-        </div>
-      </section>
-
-      <section id="bossIntro" class="screen modal-screen boss-intro-screen">
-        <div class="boss-intro-card">
-          <img id="bossCardImage" alt="Boss card">
-          <div><small id="bossFaction">BOSS</small><h2 id="bossIntroName"></h2><p id="bossIntroText"></p><button id="bossIntroContinue" class="primary">COMBATTRE</button></div>
-        </div>
-      </section>
+      <section id="menu" class="screen active"><div class="menu-bg"></div><div class="menu-copy"><div class="brand">ZEUBICARDGAMES</div><h1>RIFT<br><span>BRAWL</span></h1><p>Beat'em up 2D · campagne, survie, évolutions et factions.</p><div class="menu-buttons"><button data-action="campaign">Campagne</button><button data-action="survival">Survie</button><button data-action="codex">Cartodex</button><button data-action="options">Options</button></div><div class="version">v0.1 · Android / Web</div></div><img id="menuBooster" class="menu-booster" alt="Booster L'Ombre des Ninjas"></section>
+      <section id="characterSelect" class="screen panel-screen"><header><button class="back" data-action="back">←</button><div><small>CHOISIS TON PLAYER</small><h2>Personnage</h2></div></header><div id="characterCards" class="selection-grid"></div><div class="selection-footer"><button id="confirmCharacter" class="primary">Continuer</button></div></section>
+      <section id="chapterSelect" class="screen panel-screen"><header><button class="back" data-action="back">←</button><div><small>CAMPAGNE</small><h2>Chapitres</h2></div></header><div id="chapterCards" class="chapter-grid"></div></section>
+      <section id="codex" class="screen panel-screen"><header><button class="back" data-action="back">←</button><div><small>ZEUBICARDGAMES</small><h2>Cartodex</h2></div></header><div id="codexFilters" class="chips"></div><div id="codexGrid" class="codex-grid"></div></section>
+      <section id="options" class="screen panel-screen"><header><button class="back" data-action="back">←</button><div><small>RÉGLAGES</small><h2>Options</h2></div></header><div class="options-list"><label><span>Musique</span><input id="musicToggle" type="checkbox" checked></label><label><span>Effets sonores</span><input id="sfxToggle" type="checkbox" checked></label><label><span>Vibrations</span><input id="vibrationToggle" type="checkbox" checked></label><label><span>Difficulté</span><select id="difficulty"><option value="easy">Tranquille</option><option value="normal" selected>Normal</option><option value="hard">Rang S</option></select></label><button id="resetSave" class="danger">Réinitialiser la progression</button></div></section>
+      <section id="pause" class="screen modal-screen"><div class="modal-card"><small>PAUSE</small><h2>Mission suspendue</h2><button data-action="resume" class="primary">Reprendre</button><button data-action="restart">Recommencer</button><button data-action="quit">Quitter la mission</button></div></section>
+      <section id="result" class="screen modal-screen"><div class="modal-card result-card"><small id="resultEyebrow">MISSION TERMINÉE</small><h2 id="resultTitle">Rang A</h2><div id="resultStats"></div><button id="resultContinue" class="primary">Continuer</button><button data-action="quit">Menu principal</button></div></section>
+      <section id="bossIntro" class="screen modal-screen boss-intro-screen"><div class="boss-intro-card"><img id="bossCardImage" alt="Boss card"><div><small id="bossFaction">BOSS</small><h2 id="bossIntroName"></h2><p id="bossIntroText"></p><button id="bossIntroContinue" class="primary">COMBATTRE</button></div></div></section>
     </div>
-
-    <div id="hud" class="hidden">
-      <div class="hud-left glass">
-        <img id="hudPortrait" alt="Portrait">
-        <div class="hud-main">
-          <div class="hud-line"><b id="hudName">ZAIM SINJA</b><span id="hudScore">0</span></div>
-          <div class="meter hp"><i id="hudHp"></i></div>
-          <div class="tiny-row"><span>PV <b id="hudHpText">90/90</b></span><span id="hudCombo"></span></div>
-          <div class="meter energy"><i id="hudEnergy"></i></div>
-          <div class="meter evolve"><i id="hudEvolve"></i></div>
-        </div>
-      </div>
-      <div class="hud-center glass" id="bossHud">
-        <div><b id="bossHudName">ROOBKATSUKI</b><span id="bossHudHpText">180</span></div>
-        <div class="meter boss"><i id="bossHudHp"></i></div>
-      </div>
-      <div class="hud-right glass"><b id="hudChapter">1-1</b><span id="hudObjective">Avance</span></div>
-      <div id="banner"><b id="bannerTitle"></b><span id="bannerSub"></span></div>
-    </div>
-
-    <div id="touchControls" class="hidden">
-      <div class="dpad">
-        <button data-touch="up">▲</button>
-        <button data-touch="left">◀</button>
-        <button data-touch="right">▶</button>
-        <button data-touch="down">▼</button>
-      </div>
-      <div class="action-pad">
-        <button class="jump" data-touch="jump">JMP</button>
-        <button class="special" data-touch="special">SP</button>
-        <button class="dash" data-touch="dash">D</button>
-        <button class="heavy" data-touch="heavy">B</button>
-        <button class="light" data-touch="light">A</button>
-        <button class="evolve" id="touchEvolve" data-touch="evolve">ÉVO</button>
-      </div>
-      <button id="pauseBtn">Ⅱ</button>
-    </div>
-
+    <div id="hud" class="hidden"><div class="hud-left glass"><img id="hudPortrait" alt="Portrait"><div class="hud-main"><div class="hud-line"><b id="hudName">ZAIM SINJA</b><span id="hudScore">0</span></div><div class="meter hp"><i id="hudHp"></i></div><div class="tiny-row"><span>PV <b id="hudHpText">90/90</b></span><span id="hudCombo"></span></div><div class="meter energy"><i id="hudEnergy"></i></div><div class="meter evolve"><i id="hudEvolve"></i></div></div></div><div class="hud-center glass" id="bossHud"><div><b id="bossHudName">ROOBKATSUKI</b><span id="bossHudHpText">180</span></div><div class="meter boss"><i id="bossHudHp"></i></div></div><div class="hud-right glass"><b id="hudChapter">1-1</b><span id="hudObjective">Avance</span></div><div id="banner"><b id="bannerTitle"></b><span id="bannerSub"></span></div></div>
+    <div id="touchControls" class="hidden"><div class="dpad"><button data-touch="up">▲</button><button data-touch="left">◀</button><button data-touch="right">▶</button><button data-touch="down">▼</button></div><div class="action-pad"><button class="jump" data-touch="jump">JMP</button><button class="special" data-touch="special">SP</button><button class="dash" data-touch="dash">D</button><button class="heavy" data-touch="heavy">B</button><button class="light" data-touch="light">A</button><button class="evolve" id="touchEvolve" data-touch="evolve">ÉVO</button></div><button id="pauseBtn">Ⅱ</button></div>
     <div id="rotateHint"><b>Tourne ton téléphone</b><span>Rift Brawl se joue en paysage.</span></div>
   </div>
   <script src="assets-init.js"></script>
-  <script src="assets-1.js"></script>
-  <script src="assets-2.js"></script>
-  <script src="assets-3.js"></script>
-  <script src="assets-4.js"></script>
-  <script src="assets-5.js"></script>
-  <script src="assets-6.js"></script>
-  <script src="assets-7.js"></script>
-  <script src="assets-8.js"></script>
-  <script src="assets-9.js"></script>
-  <script src="core-data.js"></script>
-  <script src="effects.js"></script>
-  <script src="fighters.js"></script>
-  <script src="game-core.js"></script>
-  <script src="ui-input.js"></script>
+  <script src="assets-1.js"></script><script src="assets-2.js"></script><script src="assets-3.js"></script><script src="assets-4.js"></script><script src="assets-5.js"></script><script src="assets-6.js"></script><script src="assets-7.js"></script><script src="assets-8.js"></script><script src="assets-9.js"></script>
+  <script src="core-data.js"></script><script src="effects.js"></script><script src="fighters.js"></script><script src="game-state.js"></script><script src="render.js"></script><script src="ui-input.js"></script>
 </body>
 </html>
